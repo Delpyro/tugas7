@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tugas9/widgets/side_menu.dart';
+import 'package:tugas9/data/product_data.dart'; 
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,6 +12,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _username = 'Tamu'; 
+  final String namaPanggilan = "Nabil"; 
 
   @override
   void initState() {
@@ -25,121 +27,114 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _refreshList() async {
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard'), 
+        title: Text('List Produk $namaPanggilan'), 
       ),
       drawer: const SideMenu(), 
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Card(
-              elevation: 4.0, 
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    radius: 28,
-                    child: const Icon(Icons.person, size: 30),
-                  ),
-                  title: Text(
-                    'Selamat Datang Kembali!',
-                    style: textTheme.titleMedium,
-                  ),
-                  subtitle: Text(
-                    _username, 
-                    style: textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            Text(
-              'Menu Cepat',
-              style: textTheme.headlineMedium?.copyWith(
+      
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+            width: double.infinity,
+            child: Text(
+              "Halo, $_username! Berikut daftar produkmu:",
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 12),
+          ),
 
-            GridView.count(
-              crossAxisCount: 2, 
-              shrinkWrap: true, 
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              children: [
-                _buildMenuCard(
-                  context,
-                  'Profil Anda',
-                  Icons.account_circle,
-                  () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Fitur Profil belum ada')),
-                    );
-                  },
-                ),
-                _buildMenuCard(
-                  context,
-                  'Pengaturan',
-                  Icons.settings,
-                  () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Fitur Pengaturan belum ada')),
-                    );
-                  },
-                ),
-              ],
-            )
-          ],
-        ),
+          Expanded(
+            child: ProductData.products.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox_rounded, size: 80, color: Colors.grey.shade400),
+                        const SizedBox(height: 16),
+                        const Text(
+                          "Belum ada produk.",
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
+                        const Text(
+                          "Tekan tombol + untuk menambah.",
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(10),
+                    itemCount: ProductData.products.length,
+                    itemBuilder: (context, index) {
+                      final product = ProductData.products[index];
+                      return Card(
+                        elevation: 3,
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(12),
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.deepPurple.shade100,
+                            foregroundColor: Colors.deepPurple,
+                            radius: 25,
+                            child: Text(
+                              product['nama'][0].toUpperCase(),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          title: Text(
+                            product['nama'],
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text("Kode: ${product['kode']}"),
+                              Text(
+                                "Rp ${product['harga']}",
+                                style: const TextStyle(
+                                  color: Colors.green, 
+                                  fontWeight: FontWeight.bold
+                                ),
+                              ),
+                            ],
+                          ),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                          onTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/detail_product',
+                              arguments: product,
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
-    );
-  }
 
-  Widget _buildMenuCard(
-      BuildContext context, String title, IconData icon, VoidCallback onTap) {
-    return Card(
-      elevation: 2.0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell( 
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 48,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ],
-        ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await Navigator.pushNamed(context, '/add_product');
+          _refreshList();
+        },
+        tooltip: 'Tambah Produk',
+        child: const Icon(Icons.add),
       ),
     );
   }
