@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tugas9/bloc/login_bloc.dart';
+import 'package:tugas9/helpers/user_info.dart';
+import 'package:tugas9/widgets/warning_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,113 +11,91 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
 
-  Future<void> _login() async {
-    if (_formKey.currentState!.validate()) {
-      final prefs = await SharedPreferences.getInstance();
-      final registeredUsername = prefs.getString('registered_username');
-      final registeredPassword = prefs.getString('registered_password');
+  void _submit() {
+    _formKey.currentState!.save();
+    setState(() {
+      _isLoading = true;
+    });
 
-      if (registeredUsername == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Anda belum terdaftar. Silakan registrasi.')),
-          );
-        }
-        return; 
-      }
-
-      if (_usernameController.text == registeredUsername &&
-          _passwordController.text == registeredPassword) {
+    LoginBloc.login(
+      email: _emailController.text,
+      password: _passwordController.text,
+    ).then((value) async {
+      if (value.code == 200) {
+        await UserInfo().setToken(value.token.toString());
+        await UserInfo().setUserID(int.parse(value.userID.toString()));
         
-        await prefs.setBool('isLoggedIn', true);
-        await prefs.setString('loggedIn_username', _usernameController.text);
-
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
+           Navigator.pushReplacementNamed(context, '/home');
         }
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Username atau Password salah.')),
-          );
-        }
+        showDialog(
+          context: context,
+          builder: (BuildContext context) => const WarningDialog(
+            description: "Login gagal, email atau password salah",
+          ),
+        );
       }
-    }
-  }
+    }, onError: (error) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) => const WarningDialog(
+          description: "Login gagal, periksa koneksi internet",
+        ),
+      );
+    });
 
-  void _goToRegister() {
-    Navigator.pushNamed(context, '/register');
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Login'),
-      ),
-      body: Padding(
+      appBar: AppBar(title: const Text("Login")),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                'Selamat Datang!',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 24),
-
               TextFormField(
-                controller: _usernameController,
-                decoration: const InputDecoration(
-                  labelText: 'Username',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Username tidak boleh kosong';
-                  }
-                  return null;
-                },
+                controller: _emailController,
+                decoration: const InputDecoration(labelText: "Email"),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) =>
+                    value!.isEmpty ? "Email harus diisi" : null,
               ),
-              const SizedBox(height: 16),
-
+              
               TextFormField(
                 controller: _passwordController,
+                decoration: const InputDecoration(labelText: "Password"),
                 obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Password tidak boleh kosong';
-                  }
-                  return null;
-                },
+                validator: (value) =>
+                    value!.isEmpty ? "Password harus diisi" : null,
               ),
-              const SizedBox(height: 24),
-
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                ),
-                onPressed: _login,
-                child: const Text('Login'),
-              ),
-              const SizedBox(height: 16),
-
+              
+              const SizedBox(height: 20),
+              
+              _isLoading
+                  ? const CircularProgressIndicator()
+                  : ElevatedButton(
+                      child: const Text("Login"),
+                      onPressed: () {
+                        if (_formKey.currentState!.validate()) _submit();
+                      },
+                    ),
+              
               TextButton(
-                onPressed: _goToRegister,
-                child: const Text('Belum punya akun? Registrasi di sini'),
-              ),
+                child: const Text("Belum punya akun? Registrasi"),
+                onPressed: () => Navigator.pushNamed(context, '/register'),
+              )
             ],
           ),
         ),

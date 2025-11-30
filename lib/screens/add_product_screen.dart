@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tugas9/data/product_data.dart';
+import 'package:tugas9/bloc/produk_bloc.dart';
+import 'package:tugas9/models/produk.dart';
+import 'package:tugas9/widgets/warning_dialog.dart';
 
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key});
@@ -10,44 +12,42 @@ class AddProductScreen extends StatefulWidget {
 
 class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
-
   final _kodeController = TextEditingController();
   final _namaController = TextEditingController();
   final _hargaController = TextEditingController();
-  final _deskripsiController = TextEditingController();
-
-  final String namaPanggilan = "nabil";
-
-  @override
-  void dispose() {
-    _kodeController.dispose();
-    _namaController.dispose();
-    _hargaController.dispose();
-    _deskripsiController.dispose();
-    super.dispose();
-  }
+  
+  bool _isLoading = false;
+  final String namaPanggilan = "Imam";
 
   void _simpanProduk() {
     if (_formKey.currentState!.validate()) {
-      
-      final newProduct = {
-        "kode": _kodeController.text,
-        "nama": _namaController.text,
-        "harga": int.tryParse(_hargaController.text) ?? 0,
-        "deskripsi": _deskripsiController.text,
-      };
+      setState(() { _isLoading = true; });
 
-      ProductData.products.add(newProduct);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Berhasil menambah produk baru!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
+      Produk createProduk = Produk(
+        id: null, 
+        kodeProduk: _kodeController.text,
+        namaProduk: _namaController.text,
+        hargaProduk: int.parse(_hargaController.text),
       );
 
-      Navigator.pop(context);
+      ProdukBloc.addProduk(produk: createProduk).then((value) {
+        Navigator.pop(context); 
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Berhasil menambah produk!'), 
+            backgroundColor: Colors.green
+          ),
+        );
+      }, onError: (error) {
+        showDialog(
+          context: context,
+          builder: (context) => const WarningDialog(
+            description: "Gagal menyimpan data, periksa koneksi atau inputan",
+          ),
+        );
+      });
+
+      setState(() { _isLoading = false; });
     }
   }
 
@@ -58,96 +58,59 @@ class _AddProductScreenState extends State<AddProductScreen> {
         title: Text('Tambah Produk $namaPanggilan'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(16.0),
         child: Form(
-          key: _formKey, 
+          key: _formKey,
           child: ListView(
             children: [
               TextFormField(
                 controller: _kodeController,
-                textInputAction: TextInputAction.next, 
                 decoration: const InputDecoration(
-                  labelText: 'Kode Produk',
-                  hintText: 'Misal: P003',
+                  labelText: 'Kode Produk', 
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.code),
+                  prefixIcon: Icon(Icons.qr_code),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Kode produk tidak boleh kosong';
-                  }
-                  return null;
-                },
+                validator: (value) => value!.isEmpty ? 'Wajib diisi' : null,
               ),
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: _namaController,
-                textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
-                  labelText: 'Nama Produk',
-                  hintText: 'Misal: Sepatu Futsal',
+                  labelText: 'Nama Produk', 
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.shopping_bag),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Nama produk tidak boleh kosong';
-                  }
-                  return null;
-                },
+                validator: (value) => value!.isEmpty ? 'Wajib diisi' : null,
               ),
               const SizedBox(height: 16),
 
               TextFormField(
                 controller: _hargaController,
-                keyboardType: TextInputType.number, 
-                textInputAction: TextInputAction.next,
+                keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Harga (Rp)',
-                  hintText: 'Misal: 150000',
+                  labelText: 'Harga', 
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.attach_money),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Harga wajib diisi';
-                  }
-                  if (int.tryParse(value) == null) {
-                    return 'Harga harus berupa angka';
-                  }
+                  if (value == null || value.isEmpty) return 'Wajib diisi';
+                  if (int.tryParse(value) == null) return 'Harus angka valid';
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
-              TextFormField(
-                controller: _deskripsiController,
-                maxLines: 3, 
-                decoration: const InputDecoration(
-                  labelText: 'Deskripsi Produk',
-                  hintText: 'Jelaskan detail produk...',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.description),
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _simpanProduk,
-                  icon: const Icon(Icons.save),
-                  label: const Text(
-                    'Simpan Produk',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              _isLoading 
+                ? const Center(child: CircularProgressIndicator())
+                : ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    onPressed: _simpanProduk,
+                    icon: const Icon(Icons.save),
+                    label: const Text('Simpan Produk'),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    elevation: 3,
-                  ),
-                ),
-              ),
             ],
           ),
         ),
